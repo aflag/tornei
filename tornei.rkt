@@ -18,9 +18,10 @@
       (p "URL: tornei.kontesti.me/t/" (input ((name "id"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
-(define (v-show-tourney tourney)
+(define (v-show-tourney tourney subscribe-url)
   (layout
-    `(h1 ,(tourney-get 'name tourney))))
+    `(h1 ,(tourney-get 'name tourney))
+    `(a ((href ,subscribe-url)) "inscrever")))
 
 (define (v-internal-error)
   (response/full
@@ -52,18 +53,19 @@
 (define (list-tourneys request)
   (layout '(h1 "List!")))
 
+(define (subscribe-tourney request id)
+  (layout
+    '(h1 "Subscribe")
+    `(p "Tourney id: " ,id)))
+
 (define (show-tourney request id)
   (let ((tourney (find-tourney id)))
     (if tourney
-      (v-show-tourney tourney)
+      (v-show-tourney tourney (app-url subscribe-tourney id))
       (v-not-found))))
 
 (define (new-tourney request)
-  (let
-    ((response-generator
-      (lambda (embed/url)
-        (v-new-tourney (embed/url create-tourney)))))
-    (send/suspend/dispatch response-generator)))
+  (v-new-tourney (app-url create-tourney)))
 
 ; models
 (define tourney-path
@@ -99,10 +101,12 @@
     (data-read (string-append tourney-path id))))
 
 ; routes
-(define-values (route base-url)
+(define-values (route app-url)
   (dispatch-rules
     (("") new-tourney)
+    (("t" "create") create-tourney)
     (("t" (string-arg)) show-tourney)
+    (("t" (string-arg) "subscribe") subscribe-tourney)
     (else list-tourneys)))
 
 ; boiler-plate
