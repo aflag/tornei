@@ -7,6 +7,7 @@
 ; without any warranty.
 
 (require web-server/servlet web-server/servlet-env)
+(require file/md5)
 
 ; main layout
 (define (layout . body)
@@ -20,14 +21,27 @@
   (layout
     '(h1 "Fazedor de torneio")
     `(form ((method "post") (action ,action-url))
-      (p "Nome do torneio: " (input ((name "name"))))
-      (p "URL: tornei.kontesti.me/t/" (input ((name "id"))))
+      (p "Nome do torneio: " (input ((type "text") (name "name"))))
+      (p "URL: tornei.kontesti.me/t/" (input ((type "text") (name "id"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
 (define (v/show-tourney tourney subscribe-url)
   (layout
     `(h1 ,(tourney/get 'name tourney))
-    `(a ((href ,subscribe-url)) "inscrever")))
+    `(a ((href ,subscribe-url)) "inscrever")
+    '(h2 "Membros")
+    `(ul ,@(map
+            (lambda (item)
+              (list 'li (symbol->string (car item))))
+            (tourney/get 'members tourney)))))
+
+(define (v/subscribe tourney action-url)
+  (layout
+    '(h1 "Inscrever")
+    `(form ((action ,action-url) (method "post"))
+      (p "Nick: " (input ((type "text") (name "id"))))
+      (p "Senha: " (input ((type "text") (name "pass"))))
+      (input ((type "submit" (name "inscrever")))))))
 
 (define (v/internal-error)
   (response/full
@@ -64,18 +78,18 @@
     ((bytes=? #"GET" (request-method request))
      (let ((tourney (tourney/find id)))
        (if tourney
-         (v/subscribe tourney (app-url a/subscribe))
+         (v/subscribe tourney (app-url a/subscribe id))
          (v/not-found))))
     ((bytes=? #"POST" (request-method request))
-     (let ((bindings (request-bindings request)))
-       (let ((id (extract-binding/single 'id bindings)))
-         (if id
-           (let ((tourney (tourney/find id)))
-             (if (tourney/save
-                   (append-members tourney (bindings->member bindings)))
-               (v/show-tourney request id)
-               (v/internal-error))
-           (v/internal-error))))))
+     (let ((tourney (tourney/find id)))
+       (if tourney
+         (let ((bindings (request-bindings request)))
+           (let ((new-tourney
+                   (tourney/append-member tourney (bindings->member bindings))))
+             (if (tourney/save new-tourney)
+               (v/show-tourney new-tourney (app-url a/subscribe id))
+               (v/internal-error))))
+         (v/not-found))))
     (else (v/not-found))))
 
 (define (a/show-tourney request id)
@@ -94,25 +108,44 @@
 (define (bindings->assoc bindings)
   (map (lambda (v) (list (car v) (cdr v))) bindings))
 
-(define (bindings->members bindings)
-  (bindings->assoc bindings))
+(define (bindings->member bindings)
+  (let ((pass->md5
+          (lambda (fields)
+            (map (lambda (item)
+                   (if (symbol=? 'pass (car item))
+                     (list 'pass (md5 (cadr item)))
+                     item))
+                 fields))))
+    ; change password to md5sum
+    (let ((fields (pass->md5 (bindings->assoc bindings))))
+      ; create a member entry with the format (id fields), where id is a symbol
+      ; and fields a list of memeber fields (like password, name, etc).
+      (let ((id-item (assoc 'id fields)))
+        (list (string->symbol (cadr id-item)) fields)))))
 
 (define (bindings->tourney bindings)
   (bindings->assoc bindings))
 
 (define (tourney/save tourney)
-  (let ((id (tourney/get 'id tourney)))
-    (if id
-      (write-to-file
-        tourney
-        (string-append tourney/path id)
-        #:mode 'binary
-        #:exists 'truncate/replace)
-      #f)))
+  (if tourney
+    (let ((id (tourney/get 'id tourney)))
+      (if id
+        (write-to-file
+          tourney
+          (string-append tourney/path id)
+          #:mode 'binary
+          #:exists 'truncate/replace)
+        #f))
+    #f))
 
 (define (tourney/get attr tourney)
-  (let ((value (assoc attr tourney)))
-    (if value (cadr value) #f)))
+  (let ((default-value
+          (lambda (attr)
+            (cond
+              ((symbol=? attr 'members) '())
+              (else #f)))))
+    (let ((value (assoc attr tourney)))
+      (if value (cadr value) (default-value attr)))))
 
 (define (tourney/has? attr tourney)
   (if (assoc attr tourney) #t #f))
@@ -125,6 +158,18 @@
            (file->value file)
            #f))))
     (data-read (string-append tourney/path id))))
+
+(define (tourney/append-member tourney tourney-member)
+  (let ((old-members (tourney/get 'members tourney)))
+    (if (not (tourney/has? 'members tourney))
+      (cons `(members ,(list tourney-member)) tourney)
+      (if (assoc (car tourney-member) old-members)
+        #f
+        (map (lambda (item)
+               (if (symbol=? (car item) 'members)
+                 (list 'members (cons tourney-member old-members))
+                 item))
+             tourney)))))
 
 ; routes
 (define-values (route app-url)
