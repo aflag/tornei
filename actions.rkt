@@ -7,6 +7,7 @@
 ; without any warranty.
 
 (require web-server/servlet web-server/servlet-env)
+(require (for-syntax racket/syntax))
 (require "views.rkt")
 (require "models.rkt")
 
@@ -15,48 +16,78 @@
 ; routes
 (define-values (route app-url)
   (dispatch-rules
-    (("") a/new-tourney)
-    (("t" "create") a/create-tourney)
-    (("t" (string-arg)) a/show-tourney)
+    (("") a/create-tournament)
+    (("t" "create") a/create-tournament)
+    (("t" (string-arg)) a/show-tournament)
     (("t" (string-arg) "subscribe") a/subscribe)
-    (else a/list-tourneys)))
+    (("t" (string-arg) "start") a/start-tournament)
+    (else a/list-tournaments)))
+
+; macro helpers
+(define-syntax request-handler
+  (syntax-rules (h/get h/post)
+    ((_ req) (v/not-found))
+    ((_ req (h/get e1 e2 ...) r1 ...)
+     (if (bytes=? #"GET" (request-method req))
+       (begin e1 e2 ...)
+       (request-handler req r1 ...)))
+    ((_ req (h/post e1 e2 ...) r1 ...)
+     (if (bytes=? #"POST" (request-method req))
+       (begin e1 e2 ...)
+       (request-handler req r1 ...)))))
+
+(define-syntax (define-action stx)
+  (syntax-case stx ()
+    ((_ action-name code ...)
+     (with-syntax 
+       ((req (format-id #'action-name "req")))
+       #`(define (action-name req)
+	   (req-handler req code ...))))))
+
+(define-syntax (define-action-with-tournament stx)
+  (syntax-case stx ()
+    ((_ action-name code ...)
+     (with-syntax 
+       ((tournament (format-id #'action-name "tournament"))
+        (req (format-id #'action-name "req"))
+        (id (format-id #'action-name "id")))
+       #`(define (action-name req id)
+            (let ((tournament (tournament/find id)))
+              (if tournament
+                (request-handler req code ...)
+                (v/not-found))))))))
 
 ; actions
-(define (a/create-tourney request)
-  (if (bytes=? #"POST" (request-method request))
-    (let ((bindings (request-bindings request)))
-      (if (tourney/save (bindings->tourney bindings))
-        (a/show-tourney request (extract-binding/single 'id bindings))
-        (v/internal-error)))
-    (v/not-found)))
-
-(define (a/list-tourneys request)
+(define (a/list-tournaments req)
   (v/not-found))
 
-(define (a/subscribe request id)
-  (cond
-    ((bytes=? #"GET" (request-method request))
-     (let ((tourney (tourney/find id)))
-       (if tourney
-         (v/subscribe tourney (app-url a/subscribe id))
-         (v/not-found))))
-    ((bytes=? #"POST" (request-method request))
-     (let ((tourney (tourney/find id)))
-       (if tourney
-         (let ((bindings (request-bindings request)))
-           (let ((new-tourney
-                   (tourney/append-member tourney (bindings->member bindings))))
-             (if (tourney/save new-tourney)
-               (v/show-tourney new-tourney (app-url a/subscribe id))
-               (v/internal-error))))
-         (v/not-found))))
-    (else (v/not-found))))
+(define (a/create-tournament req)
+  (request-handler req
+  (h/get
+    (v/new-tournament (app-url a/create-tournament)))
+  (h/post
+    (let ((bindings (request-bindings req)))
+      (if (tournament/save (bindings->tournament bindings))
+	(a/show-tournament
+	  (struct-copy request req (method #"GET"))
+	  (extract-binding/single 'id bindings))
+	(v/internal-error))))))
 
-(define (a/show-tourney request id)
-  (let ((tourney (tourney/find id)))
-    (if tourney
-      (v/show-tourney tourney (app-url a/subscribe id))
-      (v/not-found))))
+(define-action-with-tournament a/start-tournament
+  (h/get
+    (v/start-tournament tournament (app-url a/start-tournament id))))
 
-(define (a/new-tourney request)
-  (v/new-tourney (app-url a/create-tourney)))
+(define-action-with-tournament a/subscribe
+  (h/get
+    (v/subscribe tournament (app-url a/subscribe id)))
+  (h/post
+    (let ((bindings (request-bindings req)))
+      (let ((new-tournament
+	      (tournament/append-member tournament (bindings->member bindings))))
+	(if (tournament/save new-tournament)
+	  (v/show-tournament new-tournament (app-url a/subscribe id))
+	  (v/internal-error))))))
+
+(define-action-with-tournament a/show-tournament
+  (h/get
+    (v/show-tournament tournament (app-url a/subscribe id))))

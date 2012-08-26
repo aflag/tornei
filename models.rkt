@@ -9,78 +9,78 @@
 (require file/md5)
 (provide
   bindings->member
-  bindings->tourney
-  tourney/save
-  tourney/get
-  tourney/has?
-  tourney/find
-  tourney/append-member)
+  bindings->tournament
+  tournament/save
+  tournament/get
+  tournament/has?
+  tournament/find
+  tournament/append-member)
 
-(define tourney/path
+(define tournament/path
   (string-append (path->string (current-directory)) "t/"))
 
+(define (password->md5 fields)
+  (let ((md5-if-pass (lambda (item)
+		       (if (symbol=? 'pass (car item))
+			 (list 'pass (md5 (cadr item)))
+			 item))))
+    (map md5-if-pass fields)))
+
 (define (bindings->assoc bindings)
-  (map (lambda (v) (list (car v) (cdr v))) bindings))
+  (password->md5
+    (map (lambda (v) (list (car v) (cdr v))) bindings)))
 
 (define (bindings->member bindings)
-  (let ((pass->md5
-          (lambda (fields)
-            (map (lambda (item)
-                   (if (symbol=? 'pass (car item))
-                     (list 'pass (md5 (cadr item)))
-                     item))
-                 fields))))
-    ; change password to md5sum
-    (let ((fields (pass->md5 (bindings->assoc bindings))))
+    (let ((fields (bindings->assoc bindings)))
       ; create a member entry with the format (id fields), where id is a symbol
       ; and fields a list of memeber fields (like password, name, etc).
       (let ((id-item (assoc 'id fields)))
-        (list (string->symbol (cadr id-item)) fields)))))
+        (list (string->symbol (cadr id-item)) fields))))
 
-(define (bindings->tourney bindings)
+(define (bindings->tournament bindings)
   (bindings->assoc bindings))
 
-(define (tourney/save tourney)
-  (if tourney
-    (let ((id (tourney/get 'id tourney)))
+(define (tournament/save tournament)
+  (if tournament
+    (let ((id (tournament/get 'id tournament)))
       (if id
         (write-to-file
-          tourney
-          (string-append tourney/path id)
+          tournament
+          (string-append tournament/path id)
           #:mode 'binary
           #:exists 'truncate/replace)
         #f))
     #f))
 
-(define (tourney/get attr tourney)
+(define (tournament/get attr tournament)
   (let ((default-value
           (lambda (attr)
             (cond
               ((symbol=? attr 'members) '())
               (else #f)))))
-    (let ((value (assoc attr tourney)))
+    (let ((value (assoc attr tournament)))
       (if value (cadr value) (default-value attr)))))
 
-(define (tourney/has? attr tourney)
-  (if (assoc attr tourney) #t #f))
+(define (tournament/has? attr tournament)
+  (if (assoc attr tournament) #t #f))
 
-(define (tourney/find id)
+(define (tournament/find id)
   (let
     ((data-read
        (lambda (file)
          (if (file-exists? file)
            (file->value file)
            #f))))
-    (data-read (string-append tourney/path id))))
+    (data-read (string-append tournament/path id))))
 
-(define (tourney/append-member tourney tourney-member)
-  (let ((old-members (tourney/get 'members tourney)))
-    (if (not (tourney/has? 'members tourney))
-      (cons `(members ,(list tourney-member)) tourney)
-      (if (assoc (car tourney-member) old-members)
+(define (tournament/append-member tournament tournament-member)
+  (let ((old-members (tournament/get 'members tournament)))
+    (if (not (tournament/has? 'members tournament))
+      (cons `(members ,(list tournament-member)) tournament)
+      (if (assoc (car tournament-member) old-members)
         #f
         (map (lambda (item)
                (if (symbol=? (car item) 'members)
-                 (list 'members (cons tourney-member old-members))
+                 (list 'members (cons tournament-member old-members))
                  item))
-             tourney)))))
+             tournament)))))

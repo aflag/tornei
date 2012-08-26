@@ -10,8 +10,9 @@
 (require "models.rkt")
 
 (provide
-  v/new-tourney
-  v/show-tourney
+  v/new-tournament
+  v/start-tournament
+  v/show-tournament
   v/subscribe
   v/internal-error
   v/not-found)
@@ -22,31 +23,41 @@
       (head (title "Fazedor de torneios"))
       (body ,@body))))
 
-(define (v/new-tourney action-url)
+(define (v/new-tournament action-url)
   (layout
     '(h1 "Fazedor de torneio")
     `(form ((method "post") (action ,action-url))
       (p "Nome do torneio: " (input ((type "text") (name "name"))))
       (p "URL: tornei.kontesti.me/t/" (input ((type "text") (name "id"))))
+      (p "Senha: " (input ((type "password") (name "pass"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
-(define (v/show-tourney tourney subscribe-url)
+(define (v/show-tournament tournament subscribe-url)
   (layout
-    `(h1 ,(tourney/get 'name tourney))
+    `(h1 ,(tournament/get 'name tournament))
     `(a ((href ,subscribe-url)) "inscrever")
     '(h2 "Membros")
     `(ul ,@(map
             (lambda (item)
               (list 'li (symbol->string (car item))))
-            (tourney/get 'members tourney)))))
+            (tournament/get 'members tournament)))))
 
-(define (v/subscribe tourney action-url)
+(define (v/subscribe tournament action-url)
   (layout
     '(h1 "Inscrever")
     `(form ((action ,action-url) (method "post"))
       (p "Nick: " (input ((type "text") (name "id"))))
       (p "Senha: " (input ((type "password") (name "pass"))))
       (input ((type "submit" (name "inscrever")))))))
+
+(define (v/start-tournament tournament action-url)
+  (layout
+    '(h1 "Começar torneio")
+    `(form ((action ,action-url) (method "post"))
+      (p "Número de grupos: " (input ((type "text") (name "groups"))))
+      (p "Total de classificados: " (input ((type "text") (name "winners"))))
+      (input ((type "submit" (name "iniciar")))))))
+
 
 (define (v/internal-error)
   (response/full
