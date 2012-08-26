@@ -26,7 +26,7 @@
 
 (define (v/show-tourney tourney subscribe-url)
   (layout
-    `(h1 ,(tourney-get 'name tourney))
+    `(h1 ,(tourney/get 'name tourney))
     `(a ((href ,subscribe-url)) "inscrever")))
 
 (define (v/internal-error)
@@ -51,7 +51,7 @@
 (define (a/create-tourney request)
   (if (bytes=? #"POST" (request-method request))
     (let ((bindings (request-bindings request)))
-      (if (tourney-save (bindings->tourney bindings))
+      (if (tourney/save (bindings->tourney bindings))
         (a/show-tourney request (extract-binding/single 'id bindings))
         (v/internal-error)))
     (v/not-found)))
@@ -62,7 +62,7 @@
 (define (a/subscribe request id)
   (cond
     ((bytes=? #"GET" (request-method request))
-     (let ((tourney (find-tourney id)))
+     (let ((tourney (tourney/find id)))
        (if tourney
          (v/subscribe tourney (app-url a/subscribe))
          (v/not-found))))
@@ -70,8 +70,8 @@
      (let ((bindings (request-bindings request)))
        (let ((id (extract-binding/single 'id bindings)))
          (if id
-           (let ((tourney (find-tourney id)))
-             (if (tourney-save
+           (let ((tourney (tourney/find id)))
+             (if (tourney/save
                    (append-members tourney (bindings->member bindings)))
                (v/show-tourney request id)
                (v/internal-error))
@@ -79,7 +79,7 @@
     (else (v/not-found))))
 
 (define (a/show-tourney request id)
-  (let ((tourney (find-tourney id)))
+  (let ((tourney (tourney/find id)))
     (if tourney
       (v/show-tourney tourney (app-url a/subscribe id))
       (v/not-found))))
@@ -88,7 +88,7 @@
   (v/new-tourney (app-url a/create-tourney)))
 
 ; models
-(define tourney-path
+(define tourney/path
   (string-append (path->string (current-directory)) "t/"))
 
 (define (bindings->assoc bindings)
@@ -100,31 +100,31 @@
 (define (bindings->tourney bindings)
   (bindings->assoc bindings))
 
-(define (tourney-save tourney)
-  (let ((id (tourney-get 'id tourney)))
+(define (tourney/save tourney)
+  (let ((id (tourney/get 'id tourney)))
     (if id
       (write-to-file
         tourney
-        (string-append tourney-path id)
+        (string-append tourney/path id)
         #:mode 'binary
         #:exists 'truncate/replace)
       #f)))
 
-(define (tourney-get attr tourney)
+(define (tourney/get attr tourney)
   (let ((value (assoc attr tourney)))
     (if value (cadr value) #f)))
 
-(define (tourney-has? attr tourney)
+(define (tourney/has? attr tourney)
   (if (assoc attr tourney) #t #f))
 
-(define (find-tourney id)
+(define (tourney/find id)
   (let
     ((data-read
        (lambda (file)
          (if (file-exists? file)
            (file->value file)
            #f))))
-    (data-read (string-append tourney-path id))))
+    (data-read (string-append tourney/path id))))
 
 ; routes
 (define-values (route app-url)
