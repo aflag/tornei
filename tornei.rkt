@@ -1,4 +1,10 @@
 #lang racket
+; Copyright (C) 2012 Rafael Cunha de Almeida <rafael@kontesti.me>
+;
+; Copying and distribution of this file, with or without modification,
+; are permitted in any medium without royalty provided the copyright
+; notice and this notice are preserved.  This file is offered as-is,
+; without any warranty.
 
 (require web-server/servlet web-server/servlet-env)
 
@@ -6,7 +12,7 @@
 (define (layout . body)
   (response/xexpr
     `(html
-      (head (title "Tornei"))
+      (head (title "Fazedor de torneios"))
       (body ,@body))))
 
 ; views
@@ -51,11 +57,11 @@
     (v-not-found)))
 
 (define (list-tourneys request)
-  (layout '(h1 "List!")))
+  (layout '(h1 "Lista de torneios")))
 
 (define (subscribe-tourney request id)
   (layout
-    '(h1 "Subscribe")
+    '(h1 "Inscrever")
     `(p "Tourney id: " ,id)))
 
 (define (show-tourney request id)
