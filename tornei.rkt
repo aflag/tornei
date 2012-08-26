@@ -16,7 +16,7 @@
       (body ,@body))))
 
 ; views
-(define (v-new-tourney action-url)
+(define (v/new-tourney action-url)
   (layout
     '(h1 "Fazedor de torneio")
     `(form ((method "post") (action ,action-url))
@@ -24,12 +24,12 @@
       (p "URL: tornei.kontesti.me/t/" (input ((name "id"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
-(define (v-show-tourney tourney subscribe-url)
+(define (v/show-tourney tourney subscribe-url)
   (layout
     `(h1 ,(tourney-get 'name tourney))
     `(a ((href ,subscribe-url)) "inscrever")))
 
-(define (v-internal-error)
+(define (v/internal-error)
   (response/full
     500
     #"Internal Error"
@@ -38,7 +38,7 @@
     '()
     '(#"<html><body><h1>Internal error!</h1></body></html>")))
 
-(define (v-not-found)
+(define (v/not-found)
   (response/full
     404
     #"Not found"
@@ -48,37 +48,57 @@
     '(#"<html><body><h1>Not found!</h1></body></html>")))
 
 ; actions
-(define (create-tourney request)
+(define (a/create-tourney request)
   (if (bytes=? #"POST" (request-method request))
     (let ((bindings (request-bindings request)))
       (if (tourney-save (bindings->tourney bindings))
-        (show-tourney request (extract-binding/single 'id bindings))
-        (v-internal-error)))
-    (v-not-found)))
+        (a/show-tourney request (extract-binding/single 'id bindings))
+        (v/internal-error)))
+    (v/not-found)))
 
-(define (list-tourneys request)
+(define (a/list-tourneys request)
   (layout '(h1 "Lista de torneios")))
 
-(define (subscribe-tourney request id)
-  (layout
-    '(h1 "Inscrever")
-    `(p "Tourney id: " ,id)))
+(define (a/subscribe request id)
+  (cond
+    ((bytes=? #"GET" (request-method request))
+     (let ((tourney (find-tourney id)))
+       (if tourney
+         (v/subscribe tourney (app-url a/subscribe))
+         (v/not-found))))
+    ((bytes=? #"POST" (request-method request))
+     (let ((bindings (request-bindings request)))
+       (let ((id (extract-binding/single 'id bindings)))
+         (if id
+           (let ((tourney (find-tourney id)))
+             (if (tourney-save
+                   (append-members tourney (bindings->member bindings)))
+               (v/show-tourney request id)
+               (v/internal-error))
+           (v/internal-error))))))
+    (else (v/not-found))))
 
-(define (show-tourney request id)
+(define (a/show-tourney request id)
   (let ((tourney (find-tourney id)))
     (if tourney
-      (v-show-tourney tourney (app-url subscribe-tourney id))
-      (v-not-found))))
+      (v/show-tourney tourney (app-url a/subscribe id))
+      (v/not-found))))
 
-(define (new-tourney request)
-  (v-new-tourney (app-url create-tourney)))
+(define (a/new-tourney request)
+  (v/new-tourney (app-url a/create-tourney)))
 
 ; models
 (define tourney-path
   (string-append (path->string (current-directory)) "t/"))
 
-(define (bindings->tourney bindings)
+(define (bindings->assoc bindings)
   (map (lambda (v) (list (car v) (cdr v))) bindings))
+
+(define (bindings->members bindings)
+  (bindings->assoc bindings))
+
+(define (bindings->tourney bindings)
+  (bindings->assoc bindings))
 
 (define (tourney-save tourney)
   (let ((id (tourney-get 'id tourney)))
@@ -109,11 +129,11 @@
 ; routes
 (define-values (route app-url)
   (dispatch-rules
-    (("") new-tourney)
-    (("t" "create") create-tourney)
-    (("t" (string-arg)) show-tourney)
-    (("t" (string-arg) "subscribe") subscribe-tourney)
-    (else list-tourneys)))
+    (("") a/new-tourney)
+    (("t" "create") a/create-tourney)
+    (("t" (string-arg)) a/show-tourney)
+    (("t" (string-arg) "subscribe") a/subscribe)
+    (else a/list-tourneys)))
 
 ; boiler-plate
 (define (start request)
