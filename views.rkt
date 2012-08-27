@@ -13,6 +13,7 @@
   v/new-tournament
   v/start-tournament
   v/show-tournament
+  v/show-started-tournament
   v/subscribe
   v/internal-error
   v/not-found)
@@ -32,15 +33,36 @@
       (p "Senha: " (input ((type "password") (name "pass"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
+(define (player-list tournament)
+  (map
+    (lambda (item)
+      (list 'li (symbol->string (car item))))
+    (tournament/get 'members tournament)))
+
+(define (groups-table tournament)
+  (let ((player-row (lambda (player)
+                        ;                   name                   wins     loses    draws
+                        `(tr (td ,(symbol->string (car player))) (td "0") (td "0") (td "0")))))
+    (let ((group-table
+            (lambda (group)
+              `(p (table ((border "1"))
+                      (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
+               ,@(map player-row group))))))
+    (map group-table (tournament/get 'groups tournament)))))
+
 (define (v/show-tournament tournament subscribe-url)
   (layout
     `(h1 ,(tournament/get 'name tournament))
-    `(a ((href ,subscribe-url)) "inscrever")
-    '(h2 "Membros")
-    `(ul ,@(map
-            (lambda (item)
-              (list 'li (symbol->string (car item))))
-            (tournament/get 'members tournament)))))
+    `(h2 `(a ((href ,subscribe-url)) "Inscrições abertas!"))
+    '(h2 "Jogadores")
+    `(ol ,@(player-list tournament))))
+
+(define (v/show-started-tournament tournament)
+  (layout
+    `(h1 ,(tournament/get 'name tournament))
+    `(h2 "Jogadores")
+    `(ol ,@(player-list tournament))
+    `(p ,@(groups-table tournament))))
 
 (define (v/subscribe tournament action-url)
   (layout

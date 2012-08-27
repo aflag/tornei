@@ -42,7 +42,7 @@
      (with-syntax
        ((req (format-id #'action-name "req")))
        #`(define (action-name req)
-           (req-handler req code ...))))))
+           (request-handler req code ...))))))
 
 (define-syntax (define-action-with-tournament stx)
   (syntax-case stx ()
@@ -95,4 +95,6 @@
 
 (define-action-with-tournament a/show-tournament
   (h/get
-    (v/show-tournament tournament (app-url a/subscribe id))))
+    (if (tournament/get 'started tournament)
+      (v/show-started-tournament tournament)
+      (v/show-tournament tournament (app-url a/subscribe id)))))
