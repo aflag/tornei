@@ -23,9 +23,9 @@
 
 (define (password->md5 fields)
   (let ((md5-if-pass (lambda (item)
-		       (if (symbol=? 'pass (car item))
-			 (list 'pass (md5 (cadr item)))
-			 item))))
+                       (if (symbol=? 'pass (car item))
+                         (list 'pass (md5 (cadr item)))
+                         item))))
     (map md5-if-pass fields)))
 
 (define (bindings->assoc bindings)
@@ -89,7 +89,7 @@
 
 (define (check-pass tournament options)
   (let ((t-pass (assoc 'pass tournament))
-	(o-pass (assoc 'pass options)))
+        (o-pass (assoc 'pass options)))
     (and t-pass o-pass (bytes=? (cadr t-pass) (cadr o-pass)))))
 
 (define (tournament/start tournament options)

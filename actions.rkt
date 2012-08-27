@@ -39,15 +39,15 @@
 (define-syntax (define-action stx)
   (syntax-case stx ()
     ((_ action-name code ...)
-     (with-syntax 
+     (with-syntax
        ((req (format-id #'action-name "req")))
        #`(define (action-name req)
-	   (req-handler req code ...))))))
+           (req-handler req code ...))))))
 
 (define-syntax (define-action-with-tournament stx)
   (syntax-case stx ()
     ((_ action-name code ...)
-     (with-syntax 
+     (with-syntax
        ((tournament (format-id #'action-name "tournament"))
         (req (format-id #'action-name "req"))
         (id (format-id #'action-name "id")))
@@ -68,9 +68,9 @@
   (h/post
     (let ((bindings (request-bindings req)))
       (if (tournament/save (bindings->tournament bindings))
-	(redirect-to
-	  (app-url a/show-tournament (extract-binding/single 'id bindings)))
-	(v/internal-error))))))
+        (redirect-to
+          (app-url a/show-tournament (extract-binding/single 'id bindings)))
+        (v/internal-error))))))
 
 (define-action-with-tournament a/start-tournament
   (h/get
@@ -78,10 +78,10 @@
   (h/post
     (let ((bindings (request-bindings req)))
       (if (tournament/start tournament (bindings->assoc bindings))
-	(redirect-to (app-url a/show-tournament  id))
-	; bad password or something, reloading the same view again
-	(v/start-tournament tournament (app-url a/start-tournament id))))))
-	  
+        (redirect-to (app-url a/show-tournament  id))
+        ; bad password or something, reloading the same view again
+        (v/start-tournament tournament (app-url a/start-tournament id))))))
+
 
 (define-action-with-tournament a/subscribe
   (h/get
@@ -89,10 +89,10 @@
   (h/post
     (let ((bindings (request-bindings req)))
       (let ((new-tournament
-	      (tournament/append-member tournament (bindings->member bindings))))
-	(if (tournament/save new-tournament)
-	  (v/show-tournament new-tournament (app-url a/subscribe id))
-	  (v/internal-error))))))
+              (tournament/append-member tournament (bindings->member bindings))))
+        (if (tournament/save new-tournament)
+          (v/show-tournament new-tournament (app-url a/subscribe id))
+          (v/internal-error))))))
 
 (define-action-with-tournament a/show-tournament
   (h/get
