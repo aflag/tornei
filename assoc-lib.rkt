@@ -12,3 +12,7 @@
 (define (assoc-value attr assoc-list)
   (let ((item (assoc attr assoc-list)))
     (and item (cadr item))))
+
+(define (assoc-values attr assoc-list)
+  (let ((item (assoc attr assoc-list)))
+    (and item (cdr item))))

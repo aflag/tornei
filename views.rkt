@@ -41,12 +41,14 @@
 (define (groups-table groups)
   (let ((player-row (lambda (player)
                       `(tr (td ,(assoc-value 'name player)) (td "0") (td "0") (td "0")))))
-    (let ((group-table
-            (lambda (group)
-              `(h1 ,(string-append "Grupo " (number->string (car group))))
-              `(p (table ((border "1"))
-                         (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
-                         ,@(map player-row (cdr group)))))))
+    (let
+      ((group-table
+        (lambda (group)
+          `(h1 ,(string-append "Grupo " (number->string (car group))))
+           `(p
+             (table ((border "1"))
+               (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
+               ,@(map player-row (assoc-value 'player-list (cdr group))))))))
       (map group-table groups))))
 
 (define (v/show-tournament name player-nicks subscribe-url)

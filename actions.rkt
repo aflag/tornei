@@ -104,8 +104,8 @@
       (v/show-started-tournament
         (tournament/get 'name tournament)
         (tournament/get 'player-nick-list tournament)
-        (tournament/get 'group-stats tournament))
-      (v/show-tournament 
+        (tournament/get 'groups tournament))
+      (v/show-tournament
         (tournament/get 'name tournament)
         (tournament/get 'player-nick-list tournament)
         (app-url a/subscribe id)))))

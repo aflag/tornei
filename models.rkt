@@ -65,17 +65,6 @@
        (tournament/get 'players tournament)))
     ((symbol=? attr 'groups)
      (or (assoc-value 'groups tournament) '()))
-    ((symbol=? attr 'group-stats)
-     ; still missing actual stats
-     (map
-       (lambda (group)
-         (list
-           (car group)
-           ((map
-              (lambda (player)
-                `((name ,(symbol->string (car player)))))
-              (cdr group)))))
-       (tournament/get 'groups tournament)))
     (else (assoc-value attr tournament))))
 
 (define (tournament/has? attr tournament)
@@ -126,13 +115,16 @@
       (>= players num-groups)
       (>= players num-group-winners))))
 
+(define (enumerate list-of-lists)
+  (let ((i 0))
+    (map
+      (lambda (ls) (set! i (+ i 1)) (cons i (list ls)))
+      list-of-lists)))
+
 (define (make-groups players num-groups)
-  (let ((enumerate (lambda (list-of-groups)
-                     (let ((i 0))
-                       (map
-                         (lambda (group) (set! i (+ i 1)) (cons i (list group)))
-                         list-of-groups)))))
-    (enumerate
+  (enumerate
+    (map
+      (lambda (group) (list 'player-list group))
       (foldr
         (lambda (player groups)
           (if (empty? groups)
