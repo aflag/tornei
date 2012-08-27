@@ -7,7 +7,6 @@
 ; without any warranty.
 
 (require web-server/servlet web-server/servlet-env)
-(require "models.rkt")
 
 (provide
   v/new-tournament
@@ -33,36 +32,37 @@
       (p "Senha: " (input ((type "password") (name "pass"))))
       (p (input ((type "submit") (value "Registrar")))))))
 
-(define (player-list tournament)
+(define (html-list items)
   (map
-    (lambda (item)
-      (list 'li (symbol->string (car item))))
-    (tournament/get 'members tournament)))
+    (lambda (item) (list 'li item))
+    items))
 
-(define (groups-table tournament)
+(define (groups-table groups)
   (let ((player-row (lambda (player)
                         ;                   name                   wins     loses    draws
-                        `(tr (td ,(symbol->string (car player))) (td "0") (td "0") (td "0")))))
+                        `(tr (td ,(assoc 'name player)) (td "0") (td "0") (td "0")))))
     (let ((group-table
             (lambda (group)
               `(p (table ((border "1"))
                       (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
                ,@(map player-row group))))))
-    (map group-table (tournament/get 'groups tournament)))))
+    (map group-table groups))))
 
-(define (v/show-tournament tournament subscribe-url)
+(define (v/show-tournament name player-nicks subscribe-url)
   (layout
-    `(h1 ,(tournament/get 'name tournament))
-    `(h2 `(a ((href ,subscribe-url)) "Inscrições abertas!"))
-    '(h2 "Jogadores")
-    `(ol ,@(player-list tournament))))
+    `(h1 ,name)
+    `(h2 (a ((href ,subscribe-url)) "Inscrições abertas!"))
+    `(h2 ,(if (empty? players)
+            ""
+            "Jogadores"))
+    `(ol ,@(html-list player-nicks))))
 
-(define (v/show-started-tournament tournament)
+(define (v/show-started-tournament name player-names groups)
   (layout
-    `(h1 ,(tournament/get 'name tournament))
+    `(h1 ,name)
     `(h2 "Jogadores")
-    `(ol ,@(player-list tournament))
-    `(p ,@(groups-table tournament))))
+    `(ol ,@(html-list player-names))
+    `(p ,@(groups-table groups))))
 
 (define (v/subscribe tournament action-url)
   (layout

@@ -123,6 +123,20 @@
     '()
     players))
 
+(define (cartesian-product ls)
+  (apply append
+         (map (lambda (x)
+                (map (lambda (y)
+                       (list x y)) ls)) ls)))
+
+(define (make-games groups)
+  (let ((games-on-group
+          (lambda (group)
+            (filter
+              (lambda (x) (not (symbol=? (car (cadr x)) (car (car x)))))
+              (cartesian-product group)))))
+    (foldr append '() (map games-on-group groups))))
+
 (define (tournament/start tournament options)
   (if (and
         (check-pass tournament options)
@@ -133,11 +147,13 @@
           (players (tournament/get 'members tournament)))
       (let ((players/group (/ (length players) num-groups)))
         (let ((groups (make-groups (shuffle players) players/group)))
-          (tournament/save
-            (append 
-              (list
-                '(started #t)
-                `(num-group-winners ,num-group-winners)
-                `(groups ,groups))
-              tournament)))))
+          (let ((games (make-games groups)))
+            (tournament/save
+              (append
+                (list
+                  '(started #t)
+                  `(num-group-winners ,num-group-winners)
+                  `(groups ,groups)
+                  `(games ,games))
+              tournament))))))
     #f))
