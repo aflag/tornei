@@ -43,9 +43,10 @@
                       `(tr (td ,(assoc-value 'name player)) (td "0") (td "0") (td "0")))))
     (let ((group-table
             (lambda (group)
+              `(h1 ,(string-append "Grupo " (number->string (car group))))
               `(p (table ((border "1"))
-                      (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
-               ,@(map player-row group))))))
+                         (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
+                         ,@(map player-row (cdr group)))))))
       (map group-table groups))))
 
 (define (v/show-tournament name player-nicks subscribe-url)
@@ -60,9 +61,11 @@
 (define (v/show-started-tournament name player-nicks groups)
   (layout
     `(h1 ,name)
-    `(h2 "Jogadores")
+    '(h2 "Jogadores")
     `(ol ,@(html-list player-nicks))
-    `(p ,@(groups-table groups))))
+    '(h2 "Grupos")
+    `(p ,@(groups-table groups))
+    '(h2 "Jogos")))
 
 (define (v/subscribe name action-url)
   (layout

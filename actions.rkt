@@ -93,7 +93,7 @@
   (h/post
     (let ((bindings (request-bindings req)))
       (let ((new-tournament
-              (tournament/append-member tournament (bindings->member bindings))))
+              (tournament/append-player tournament (bindings->player bindings))))
         (if (tournament/save new-tournament)
           (redirect-to (app-url a/show-tournament id))
           (v/internal-error))))))

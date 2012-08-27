@@ -10,13 +10,13 @@
 (require file/md5)
 (provide
   bindings->assoc
-  bindings->member
+  bindings->player
   bindings->tournament
   tournament/save
   tournament/get
   tournament/has?
   tournament/find
-  tournament/append-member
+  tournament/append-player
   tournament/start)
 
 (define tournament/path
@@ -33,9 +33,9 @@
   (password->md5
     (map (lambda (v) (list (car v) (cdr v))) bindings)))
 
-(define (bindings->member bindings)
+(define (bindings->player bindings)
     (let ((fields (bindings->assoc bindings)))
-      ; create a member entry with the format (id fields), where id is a symbol
+      ; create a player entry with the format (id fields), where id is a symbol
       ; and fields a list of memeber fields (like password, name, etc).
       (let ((id-item (assoc 'id fields)))
         (list (string->symbol (cadr id-item)) fields))))
@@ -57,22 +57,24 @@
 
 (define (tournament/get attr tournament)
   (cond
-    ((symbol=? attr 'members)
-     (or (assoc-value 'members tournament) '()))
+    ((symbol=? attr 'players)
+     (or (assoc-value 'players tournament) '()))
     ((symbol=? attr 'player-nick-list)
      (map
        (lambda (x) (symbol->string (car x)))
-       (tournament/get 'members tournament)))
+       (tournament/get 'players tournament)))
     ((symbol=? attr 'groups)
      (or (assoc-value 'groups tournament) '()))
     ((symbol=? attr 'group-stats)
      ; still missing actual stats
      (map
        (lambda (group)
-         (map
-           (lambda (player)
-             `((name ,(symbol->string (car player)))))
-           group))
+         (list
+           (car group)
+           ((map
+              (lambda (player)
+                `((name ,(symbol->string (car player)))))
+              (cdr group)))))
        (tournament/get 'groups tournament)))
     (else (assoc-value attr tournament))))
 
@@ -88,15 +90,15 @@
            #f))))
     (data-read (string-append tournament/path id))))
 
-(define (tournament/append-member tournament tournament-member)
-  (let ((old-members (tournament/get 'members tournament)))
-    (if (not (tournament/has? 'members tournament))
-      (cons `(members ,(list tournament-member)) tournament)
-      (if (assoc (car tournament-member) old-members)
+(define (tournament/append-player tournament tournament-player)
+  (let ((old-players (tournament/get 'players tournament)))
+    (if (not (tournament/has? 'players tournament))
+      (cons `(players ,(list tournament-player)) tournament)
+      (if (assoc (car tournament-player) old-players)
         #f
         (map (lambda (item)
-               (if (symbol=? (car item) 'members)
-                 (list 'members (cons tournament-member old-members))
+               (if (symbol=? (car item) 'players)
+                 (list 'players (cons tournament-player old-players))
                  item))
              tournament)))))
 
@@ -117,7 +119,7 @@
 (define (check-sizes tournament options)
   (let ((num-groups (assoc-get-number 'num-groups options))
         (num-group-winners (assoc-get-number 'num-group-winners options))
-        (players (length (tournament/get 'members tournament))))
+        (players (length (tournament/get 'players tournament))))
     (and
       num-groups
       num-group-winners
@@ -125,16 +127,22 @@
       (>= players num-group-winners))))
 
 (define (make-groups players num-groups)
-  (foldr
-    (lambda (player groups)
-      (if (empty? groups)
-        (cons (list player) groups)
-        (let ((current-group (car groups)))
-          (if (< (length current-group) num-groups)
-            (cons (cons player current-group) (cdr groups))
-            (cons (list player) groups)))))
-    '()
-    players))
+  (let ((enumerate (lambda (list-of-groups)
+                     (let ((i 0))
+                       (map
+                         (lambda (group) (set! i (+ i 1)) (cons i (list group)))
+                         list-of-groups)))))
+    (enumerate
+      (foldr
+        (lambda (player groups)
+          (if (empty? groups)
+            (cons (list (car player)) groups)
+            (let ((current-group (car groups)))
+              (if (< (length current-group) num-groups)
+                (cons (cons (car player) current-group) (cdr groups))
+                (cons (list (car player)) groups)))))
+        '()
+        players))))
 
 (define (cartesian-product ls)
   (apply append
@@ -142,13 +150,22 @@
                 (map (lambda (y)
                        (list x y)) ls)) ls)))
 
-(define (make-games groups)
-  (let ((games-on-group
-          (lambda (group)
-            (filter
-              (lambda (x) (not (symbol=? (car (cadr x)) (car (car x)))))
-              (cartesian-product group)))))
-    (foldr append '() (map games-on-group groups))))
+;(define (make-matches groups)
+;  (let
+;    ((make-matches-from-group
+;       (lambda (group)
+;         (letrec
+;           ((play-other? (lambda (match) (not (symbol=? (car match) (cadr match)))))
+;            (same-match? (lambda (match1 match2)
+;                          (or
+;                            (and (symbol=? (car match1) (car match2)) (symbol=? (cadr match1) (cadr match2)))
+;                            (and (symbol=? (cadr match1) (car match2)) (symbol=? (car match1) (cadr match2))))))
+;            (all-combinations (cartesian-product (cdr group)))
+;            (add-key (lambda (match) `(vs (,(car match) . #f) (,(cadr match) . #f)))))
+;           (map
+;             add-key
+;             (remove-duplicates (filter play-other? all-combinations) same-match?))))))
+;    (foldr append '() (map make-matches-from-group groups))))
 
 (define (tournament/start tournament options)
   (if (and
@@ -157,16 +174,16 @@
         (not (tournament/get 'started tournament)))
     (let ((num-groups (assoc-get-number 'num-groups options))
           (num-group-winners (assoc-get-number 'num-group-winners options))
-          (players (tournament/get 'members tournament)))
+          (players (tournament/get 'players tournament)))
       (let ((players/group (/ (length players) num-groups)))
         (let ((groups (make-groups (shuffle players) players/group)))
-          (let ((games (make-games groups)))
+          (let ((matches '()))
             (tournament/save
               (append
                 (list
                   '(started #t)
                   `(num-group-winners ,num-group-winners)
                   `(groups ,groups)
-                  `(games ,games))
+                  `(matches ,matches))
               tournament))))))
     #f))
