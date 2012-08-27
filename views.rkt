@@ -56,6 +56,7 @@
     `(form ((action ,action-url) (method "post"))
       (p "Número de grupos: " (input ((type "text") (name "groups"))))
       (p "Total de classificados: " (input ((type "text") (name "winners"))))
+      (p "Senha: " (input ((type "password") (name "pass"))))
       (input ((type "submit" (name "iniciar")))))))
 
 

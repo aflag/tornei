@@ -68,14 +68,20 @@
   (h/post
     (let ((bindings (request-bindings req)))
       (if (tournament/save (bindings->tournament bindings))
-	(a/show-tournament
-	  (struct-copy request req (method #"GET"))
-	  (extract-binding/single 'id bindings))
+	(redirect-to
+	  (app-url a/show-tournament (extract-binding/single 'id bindings)))
 	(v/internal-error))))))
 
 (define-action-with-tournament a/start-tournament
   (h/get
-    (v/start-tournament tournament (app-url a/start-tournament id))))
+    (v/start-tournament tournament (app-url a/start-tournament id)))
+  (h/post
+    (let ((bindings (request-bindings req)))
+      (if (tournament/start tournament (bindings->assoc bindings))
+	(redirect-to (app-url a/show-tournament  id))
+	; bad password or something, reloading the same view again
+	(v/start-tournament tournament (app-url a/start-tournament id))))))
+	  
 
 (define-action-with-tournament a/subscribe
   (h/get

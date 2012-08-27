@@ -8,13 +8,15 @@
 
 (require file/md5)
 (provide
+  bindings->assoc
   bindings->member
   bindings->tournament
   tournament/save
   tournament/get
   tournament/has?
   tournament/find
-  tournament/append-member)
+  tournament/append-member
+  tournament/start)
 
 (define tournament/path
   (string-append (path->string (current-directory)) "t/"))
@@ -84,3 +86,13 @@
                  (list 'members (cons tournament-member old-members))
                  item))
              tournament)))))
+
+(define (check-pass tournament options)
+  (let ((t-pass (assoc 'pass tournament))
+	(o-pass (assoc 'pass options)))
+    (and t-pass o-pass (bytes=? (cadr t-pass) (cadr o-pass)))))
+
+(define (tournament/start tournament options)
+  (if (check-pass tournament options)
+    #t
+    #f))
