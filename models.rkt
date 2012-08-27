@@ -87,12 +87,57 @@
                  item))
              tournament)))))
 
+; check if password matches the one passed as options
 (define (check-pass tournament options)
   (let ((t-pass (assoc 'pass tournament))
         (o-pass (assoc 'pass options)))
     (and t-pass o-pass (bytes=? (cadr t-pass) (cadr o-pass)))))
 
+(define (assoc-get-number name association)
+  (let ((item (assoc name association)))
+    (if item
+      (let ((number (string->number (cadr item))))
+        number)
+      #f)))
+
+; check if number of groups and group-winners make sense
+(define (check-sizes tournament options)
+  (let ((num-groups (assoc-get-number 'num-groups options))
+        (num-group-winners (assoc-get-number 'num-group-winners options))
+        (players (length (tournament/get 'members tournament))))
+    (and
+      num-groups
+      num-group-winners
+      (>= players num-groups)
+      (>= players num-group-winners))))
+
+(define (make-groups players num-groups)
+  (foldr
+    (lambda (player groups)
+      (if (empty? groups)
+        (cons (list player) groups)
+        (let ((current-group (car groups)))
+          (if (< (length current-group) num-groups)
+            (cons (cons player current-group) (cdr groups))
+            (cons (list player) groups)))))
+    '()
+    players))
+
 (define (tournament/start tournament options)
-  (if (check-pass tournament options)
-    #t
+  (if (and
+        (check-pass tournament options)
+        (check-sizes tournament options)
+        (not (tournament/get 'started tournament)))
+    (let ((num-groups (assoc-get-number 'num-groups options))
+          (num-group-winners (assoc-get-number 'num-group-winners options))
+          (players (tournament/get 'members tournament)))
+      (let ((players/group (/ (length players) num-groups)))
+        (let ((groups (make-groups (shuffle players) players/group)))
+          (tournament/save
+            (append 
+              (list
+                '(started #t)
+                `(num-group-winners ,num-group-winners)
+                `(groups ,groups))
+              tournament)))))
     #f))
