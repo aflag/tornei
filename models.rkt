@@ -6,6 +6,7 @@
 ; notice and this notice are preserved.  This file is offered as-is,
 ; without any warranty.
 
+(require "assoc-lib.rkt")
 (require file/md5)
 (provide
   bindings->assoc
@@ -55,13 +56,25 @@
     #f))
 
 (define (tournament/get attr tournament)
-  (let ((default-value
-          (lambda (attr)
-            (cond
-              ((symbol=? attr 'members) '())
-              (else #f)))))
-    (let ((value (assoc attr tournament)))
-      (if value (cadr value) (default-value attr)))))
+  (cond
+    ((symbol=? attr 'members)
+     (or (assoc-value 'members tournament) '()))
+    ((symbol=? attr 'player-nick-list)
+     (map
+       (lambda (x) (symbol->string (car x)))
+       (tournament/get 'members tournament)))
+    ((symbol=? attr 'groups)
+     (or (assoc-value 'groups tournament) '()))
+    ((symbol=? attr 'group-stats)
+     ; still missing actual stats
+     (map
+       (lambda (group)
+         (map
+           (lambda (player)
+             `((name ,(symbol->string (car player)))))
+           group))
+       (tournament/get 'groups tournament)))
+    (else (assoc-value attr tournament))))
 
 (define (tournament/has? attr tournament)
   (if (assoc attr tournament) #t #f))

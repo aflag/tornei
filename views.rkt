@@ -7,6 +7,7 @@
 ; without any warranty.
 
 (require web-server/servlet web-server/servlet-env)
+(require "assoc-lib.rkt")
 
 (provide
   v/new-tournament
@@ -39,42 +40,41 @@
 
 (define (groups-table groups)
   (let ((player-row (lambda (player)
-                        ;                   name                   wins     loses    draws
-                        `(tr (td ,(assoc 'name player)) (td "0") (td "0") (td "0")))))
+                      `(tr (td ,(assoc-value 'name player)) (td "0") (td "0") (td "0")))))
     (let ((group-table
             (lambda (group)
               `(p (table ((border "1"))
                       (tr (th "Nome") (th "Vitorias") (th "Derrotas") (th "Empates"))
                ,@(map player-row group))))))
-    (map group-table groups))))
+      (map group-table groups))))
 
 (define (v/show-tournament name player-nicks subscribe-url)
   (layout
     `(h1 ,name)
     `(h2 (a ((href ,subscribe-url)) "Inscrições abertas!"))
-    `(h2 ,(if (empty? players)
+    `(h2 ,(if (empty? player-nicks)
             ""
             "Jogadores"))
     `(ol ,@(html-list player-nicks))))
 
-(define (v/show-started-tournament name player-names groups)
+(define (v/show-started-tournament name player-nicks groups)
   (layout
     `(h1 ,name)
     `(h2 "Jogadores")
-    `(ol ,@(html-list player-names))
+    `(ol ,@(html-list player-nicks))
     `(p ,@(groups-table groups))))
 
-(define (v/subscribe tournament action-url)
+(define (v/subscribe name action-url)
   (layout
-    '(h1 "Inscrever")
+    `(h1 ,(string-append "Inscrever-se em " name))
     `(form ((action ,action-url) (method "post"))
       (p "Nick: " (input ((type "text") (name "id"))))
       (p "Senha: " (input ((type "password") (name "pass"))))
       (input ((type "submit" (name "inscrever")))))))
 
-(define (v/start-tournament tournament action-url)
+(define (v/start-tournament name action-url)
   (layout
-    '(h1 "Começar torneio")
+    `(h1 ,(string-append "Começar torneio " name))
     `(form ((action ,action-url) (method "post"))
       (p "Número de grupos: " (input ((type "text") (name "num-groups"))))
       (p "Total de classificados: " (input ((type "text") (name "num-group-winners"))))

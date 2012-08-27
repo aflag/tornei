@@ -73,28 +73,39 @@
 
 (define-action-with-tournament a/start-tournament
   (h/get
-    (v/start-tournament tournament (app-url a/start-tournament id)))
+    (v/start-tournament
+      (tournament/get 'name tournament)
+      (app-url a/start-tournament id)))
   (h/post
     (let ((bindings (request-bindings req)))
       (if (tournament/start tournament (bindings->assoc bindings))
         (redirect-to (app-url a/show-tournament  id))
         ; bad password or something, reloading the same view again
-        (v/start-tournament tournament (app-url a/start-tournament id))))))
-
+        (v/start-tournament
+          (tournament/get 'name tournament)
+          (app-url a/start-tournament id))))))
 
 (define-action-with-tournament a/subscribe
   (h/get
-    (v/subscribe tournament (app-url a/subscribe id)))
+    (v/subscribe
+      (tournament/get 'name tournament)
+      (app-url a/subscribe id)))
   (h/post
     (let ((bindings (request-bindings req)))
       (let ((new-tournament
               (tournament/append-member tournament (bindings->member bindings))))
         (if (tournament/save new-tournament)
-          (v/show-tournament new-tournament (app-url a/subscribe id))
+          (redirect-to (app-url a/show-tournament id))
           (v/internal-error))))))
 
 (define-action-with-tournament a/show-tournament
   (h/get
     (if (tournament/get 'started tournament)
-      (v/show-started-tournament tournament)
-      (v/show-tournament tournament (app-url a/subscribe id)))))
+      (v/show-started-tournament
+        (tournament/get 'name tournament)
+        (tournament/get 'player-nick-list tournament)
+        (tournament/get 'group-stats tournament))
+      (v/show-tournament 
+        (tournament/get 'name tournament)
+        (tournament/get 'player-nick-list tournament)
+        (app-url a/subscribe id)))))
