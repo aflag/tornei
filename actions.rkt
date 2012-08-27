@@ -61,8 +61,7 @@
 (define (a/list-tournaments req)
   (v/not-found))
 
-(define (a/create-tournament req)
-  (request-handler req
+(define-action a/create-tournament
   (h/get
     (v/new-tournament (app-url a/create-tournament)))
   (h/post
@@ -70,7 +69,7 @@
       (if (tournament/save (bindings->tournament bindings))
         (redirect-to
           (app-url a/show-tournament (extract-binding/single 'id bindings)))
-        (v/internal-error))))))
+        (v/internal-error)))))
 
 (define-action-with-tournament a/start-tournament
   (h/get
